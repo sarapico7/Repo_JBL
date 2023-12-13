@@ -1,0 +1,11 @@
+ID_pedido,ID_proveedor,Fecha,Estado_asignado
+pedi573227CWLRUV,provH&K735GE,04/12/2023,['Pagado']
+pedi973346JBHQPW,provH&K735GE,08/10/2023,['Por hacer']
+pedi911884KXEHJI,provRCR423SP,19/07/2023,['Por hacer']
+pedi166781KLFKTD,provSCS854SP,23/04/2023,['Almacenado']
+pedi415589ZWBNDB,provSCS854SP,12/02/2023,['Distribuido']
+pedi336019YZGSIS,provSCS854SP,05/02/2023,['Distribuido']
+pedi115426ZLRZZX,provRCR423SP,12/01/2023,['Almacenado']
+pedi008616SEPHOE,provSCS854SP,19/12/2022,['Distribuido']
+pedi147373OLUSVT,provCAN080GE,16/11/2022,['Distribuido']
+pedi936933XIDBSD,provSCS854SP,27/09/2022,['Distribuido']
