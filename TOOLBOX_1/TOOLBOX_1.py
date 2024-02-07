@@ -46,9 +46,9 @@ def funcion_categorias(df):
     for col in df.columns:
         datos = {}
         if pd.api.types.is_numeric_dtype(df[col]):
-            datos['Categoria'] = 'Numerica Continua' if df[col].nunique() > 10 else 'Numérica Discreta'
+            datos['Categoria'] = 'Numerica Continua' if df[col].nunique() > 10 else 'Binaria'
         else:
-            datos['Categoria'] = 'Categórica' if df[col].nunique() > 2 else 'Binaria'
+            datos['Categoria'] = 'Categórica' if df[col].nunique() > 2 else 'Numérica Discreta'
    
         resultado[col] = pd.Series(datos)
     return resultado.transpose()
