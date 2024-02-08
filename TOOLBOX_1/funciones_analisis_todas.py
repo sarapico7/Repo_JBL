@@ -522,3 +522,143 @@ def obtener_estadisticas(df):
         datos['porcentaje_NaN'] = round(df[col].isna().mean() * 100, 2)
         resultado[col] = pd.Series(datos)
     return resultado.transpose()
+
+
+
+def crea_df_std(df, row_names='all', col_names=['name', 'type', 'prio', 'card', 'card%', 'NaN', 'Unknown', '%_NaN', 'Category']):
+    """
+    Crea un DataFrame de resumen (df_std) para analizar la estructura de datos de un DataFrame dado (df).
+    Proporciona información sobre el tipo de datos, la cardinalidad, el número de valores NaN y Unknown,
+    el porcentaje de valores NaN y Unknown (%_NaN), y categoriza cada columna en 'Binaria', 'Categórica', 
+    'Numérica Discreta' o 'Numérica Continua' basado en su cardinalidad y tipo de datos.
+
+    Args:
+        df (DataFrame): DataFrame de pandas a analizar.
+        row_names (list, optional): Lista de nombres de columnas a incluir en el análisis. 'all' analiza todas las columnas.
+        col_names (list, optional): Nombres de las columnas en el DataFrame de resumen.
+
+    Returns:
+        DataFrame: Un DataFrame de resumen con las columnas especificadas en col_names.
+    """
+
+    if row_names == 'all':
+        row_names = df.columns
+
+    row_types = []
+    row_prio = []
+    card = []
+    card_per = []
+    nan_counts = []
+    unknown_counts = []
+    null_per = []
+    categories = []
+
+    for col_name in row_names:
+        col_type = df[col_name].dtype
+        unique_values = df[col_name].nunique()
+        percent_unique = round((unique_values / len(df) * 100), 2)
+        nan_count = df[col_name].isna().sum()
+        # Cuenta 'Unknown' en diferentes capitalizaciones
+        unknown_count = df[col_name].apply(lambda x: str(x).lower() == 'unknown').sum()
+        total_missing = nan_count + unknown_count
+        null_percent = round((total_missing / len(df) * 100), 2)
+        
+        if unique_values == 2:
+            category = 'Binaria'
+        elif pd.api.types.is_numeric_dtype(col_type) and (unique_values > 6 and unique_values <= 20 or (percent_unique >= 5 and percent_unique <= 20)):
+            category = 'Numérica Discreta'
+        elif unique_values <= 10 and percent_unique > 1 or unique_values <= 6:
+            category = 'Categórica'
+        else:  # Para el resto de casos, consideramos la columna como Numérica Continua
+            category = 'Numérica Continua'
+        
+        row_types.append(col_type)
+        row_prio.append(3)  # Valor predeterminado, considerar hacerlo configurable o explicar su significado
+        card.append(unique_values)
+        card_per.append(percent_unique)
+        nan_counts.append(nan_count)
+        unknown_counts.append(unknown_count)
+        null_per.append(null_percent)
+        categories.append(category)
+    
+    df_std = pd.DataFrame(list(zip(row_names, row_types, row_prio, card, card_per, nan_counts, unknown_counts, null_per, categories)), columns=col_names)
+    return df_std
+
+
+def analyze_null_values_grouped(df, nul_cols='all', columns='all'):
+    """
+    Analiza los valores nulos en un DataFrame agrupados por columnas especificadas y calcula varias métricas:
+    - '%_values': El porcentaje de cada valor único (o rango para columnas numéricas con más de 10 valores únicos)
+      dentro de los nulos de una columna específica respecto al total de nulos en esa columna.
+    - 'All': El número total de ocurrencias de cada valor único o rango en toda la columna analizada, no solo entre los nulos.
+    - '%_All': El porcentaje que representa 'All' sobre el total de filas en el DataFrame.
+    - 'Variation': La diferencia porcentual entre '%_values' y '%_All', mostrando cómo varía la distribución de valores nulos
+      respecto a la distribución general en la columna.
+    
+    Args:
+        df (pd.DataFrame): DataFrame de Pandas a analizar.
+        nul_cols (list or str, optional): Columnas en las cuales buscar nulos. 'all' para todas las columnas.
+        columns (list or str, optional): Columnas objetivo para mostrar el reparto de valores. 'all' para todas las columnas.
+    
+    Returns:
+        list: Una lista de DataFrames, cada uno correspondiendo a una columna en `columns`, con las métricas calculadas.
+    """
+    if nul_cols == 'all':
+        nul_cols = df.columns
+    elif isinstance(nul_cols, str):
+        nul_cols = [nul_cols]
+
+    if columns == 'all':
+        columns = df.columns
+    elif isinstance(columns, str):
+        columns = [columns]
+    
+    final_dfs = {}
+    
+    for colu in columns:
+        all_dfs = []
+        # Preparar 'temp_value' para todo el DataFrame antes del bucle de columnas
+        if df[colu].dtype.kind in 'iuf' and df[colu].nunique() > 10:
+            bins = np.linspace(df[colu].min(), df[colu].max(), 11)
+            labels = [f"{bins[i]}-{bins[i+1]}" for i in range(10)]
+            df['temp_value'] = pd.cut(df[colu], bins=bins, labels=labels, include_lowest=True)
+        else:
+            df['temp_value'] = df[colu].astype(str)
+        
+        # Calcular 'All' para todo el DataFrame
+        all_counts = df['temp_value'].value_counts().reset_index()
+        all_counts.columns = ['Value', 'All']
+        all_counts['%_All'] = (all_counts['All'] / len(df)) * 100
+        
+        for col in nul_cols:
+            mask = df[col].apply(lambda x: pd.isna(x) or str(x).lower() in ['unknown'])
+            if not mask.any():
+                continue
+            
+            # Agrupar por 'temp_value' dentro de los nulos y contar
+            n_values_df = df.loc[mask, 'temp_value'].value_counts().reset_index()
+            n_values_df.columns = ['Value', 'n_values']
+            n_values_df['Columns'] = col
+            
+            # Calcular '%_values' como el porcentaje de nulos en 'col' para cada valor único o rango en 'colu'
+            total_nulos_col = mask.sum()
+            n_values_df['%_values'] = (n_values_df['n_values'] / total_nulos_col) * 100
+            
+            # Combinar con 'All' y '%_All'
+            merged_df = pd.merge(n_values_df, all_counts, on='Value')
+            merged_df['Variation'] = merged_df['%_values'] - merged_df['%_All']
+            
+            all_dfs.append(merged_df)
+        
+        if all_dfs:
+            final_df = pd.concat(all_dfs, ignore_index=True)
+            final_dfs[colu] = final_df[['Columns', 'Value', 'n_values', '%_values', 'All', '%_All', 'Variation']]
+    
+    # Mostrar y devolver los DataFrames finales
+    for colu, df_colu in final_dfs.items():
+        print(f"Análisis agrupado por '{colu}':")
+        display(df_colu)
+    
+    return list(final_dfs.values())
+
+
