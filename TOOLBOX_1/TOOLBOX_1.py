@@ -94,7 +94,7 @@ def get_features_num_regression(df, target_col,umbral_corr = 0.5, pvalue = None)
     nl ='\n'
     print(f"Las columnas numéricas con |valor de correlación superior| a {umbral_corr} aportado en la variable 'umbral_corr' en referencia a {target_col} son: {nl}Directamente proporcionales:   {columnas_correlacionadas_dir} {nl}Indirectamente proporcionales: {columnas_correlacionadas_indir}")
     
-    return columnas_correlacionadas_dir + columnas_correlacionadas_indir
+    return {columnas_correlacionadas_dir + columnas_correlacionadas_indir}
 
 
 
